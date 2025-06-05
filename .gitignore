@@ -1,4 +1,6 @@
 .idea
+.qodo
+.vscode
 skprx/CMakeFiles
 skprx/stubs
 skprx/cmake_install.cmake

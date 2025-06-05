@@ -12,9 +12,10 @@
 #include "log.h"
 
 #define PROPRIETARY_DRIVER_ID "VITAPAD"
-#define PROPRIETARY_USB_PID	0x1337
+#define PROPRIETARY_USB_PID 0x1337
 
-struct GamepadReport {
+struct GamepadReport
+{
 	uint8_t report_id;
 	uint16_t buttons;
 	int8_t left_x;
@@ -23,11 +24,11 @@ struct GamepadReport {
 	int8_t right_y;
 } __attribute__((packed));
 
-#define EVF_CONNECTED		(1 << 0)
-#define EVF_DISCONNECTED	(1 << 1)
-#define EVF_EXIT		(1 << 2)
-#define EVF_INT_REQ_COMPLETED	(1 << 3)
-#define EVF_ALL_MASK		(EVF_INT_REQ_COMPLETED | (EVF_INT_REQ_COMPLETED - 1))
+#define EVF_CONNECTED (1 << 0)
+#define EVF_DISCONNECTED (1 << 1)
+#define EVF_EXIT (1 << 2)
+#define EVF_INT_REQ_COMPLETED (1 << 3)
+#define EVF_ALL_MASK (EVF_INT_REQ_COMPLETED | (EVF_INT_REQ_COMPLETED - 1))
 
 static SceUID USB_THREAD_ID;
 static SceUID USB_EVENT_FLAG_ID;
@@ -44,40 +45,38 @@ static int R3_PRESSED;
 
 int kuCtrlReadBufferPositive(SceCtrlData *pad_data, int count)
 {
-    uint32_t state;
-    ENTER_SYSCALL(state);
+	uint32_t state;
+	ENTER_SYSCALL(state);
 
-    SceCtrlData pad;
-    uint32_t off;
+	SceCtrlData pad;
+	uint32_t off;
 
-    asm volatile ("mrc p15, 0, %0, c13, c0, 4" : "=r" (off));
-    asm volatile ("mcr p15, 0, %0, c13, c0, 4" :: "r" (0));
+	asm volatile("mrc p15, 0, %0, c13, c0, 4" : "=r"(off));
+	asm volatile("mcr p15, 0, %0, c13, c0, 4" ::"r"(0));
 
-    int res = ksceCtrlPeekBufferPositive(0, &pad, count);
+	int res = ksceCtrlPeekBufferPositive(0, &pad, count);
 
-    asm volatile ("mcr p15, 0, %0, c13, c0, 4" :: "r" (off));
+	asm volatile("mcr p15, 0, %0, c13, c0, 4" ::"r"(off));
 
-    ksceKernelMemcpyKernelToUser((uintptr_t)pad_data, &pad, sizeof(SceCtrlData));
+	ksceKernelMemcpyKernelToUser((uintptr_t)pad_data, &pad, sizeof(SceCtrlData));
 
-    EXIT_SYSCALL(state);
-    return res;
+	EXIT_SYSCALL(state);
+	return res;
 }
-
 
 static int sendDescHidReport(void)
 {
 	static SceUdcdDeviceRequest req = {
-		.endpoint = &endpoints[0],
-		.data = hid_report_descriptor,
-		.size = sizeof(hid_report_descriptor),
-		.isControlRequest = 0,
-		.onComplete = NULL,
-		.transmitted = 0,
-		.returnCode = 0,
-		.next = NULL,
-		.unused = NULL,
-		.physicalAddress = NULL
-	};
+			.endpoint = &endpoints[0],
+			.data = hid_report_descriptor,
+			.size = sizeof(hid_report_descriptor),
+			.isControlRequest = 0,
+			.onComplete = NULL,
+			.transmitted = 0,
+			.returnCode = 0,
+			.next = NULL,
+			.unused = NULL,
+			.physicalAddress = NULL};
 
 	return ksceUdcdReqSend(&req);
 }
@@ -85,17 +84,16 @@ static int sendDescHidReport(void)
 static int sendStringDescriptor(int index)
 {
 	static SceUdcdDeviceRequest req = {
-		.endpoint = &endpoints[0],
-		.data = &string_descriptors[0],
-		.size = sizeof(string_descriptors[0]),
-		.isControlRequest = 0,
-		.onComplete = NULL,
-		.transmitted = 0,
-		.returnCode = 0,
-		.next = NULL,
-		.unused = NULL,
-		.physicalAddress = NULL
-	};
+			.endpoint = &endpoints[0],
+			.data = &string_descriptors[0],
+			.size = sizeof(string_descriptors[0]),
+			.isControlRequest = 0,
+			.onComplete = NULL,
+			.transmitted = 0,
+			.returnCode = 0,
+			.next = NULL,
+			.unused = NULL,
+			.physicalAddress = NULL};
 
 	return ksceUdcdReqSend(&req);
 }
@@ -103,26 +101,24 @@ static int sendStringDescriptor(int index)
 static int sendInitialHidReport(uint8_t report_id)
 {
 	static struct GamepadReport gamepad __attribute__((aligned(64))) = {
-		.report_id = 1,
-		.buttons = 0,
-		.left_x = 0,
-		.left_y = 0,
-		.right_x = 0,
-		.right_y = 0
-	};
+			.report_id = 1,
+			.buttons = 0,
+			.left_x = 0,
+			.left_y = 0,
+			.right_x = 0,
+			.right_y = 0};
 
 	static SceUdcdDeviceRequest req = {
-		.endpoint = &endpoints[0],
-		.data = &gamepad,
-		.size = sizeof(gamepad),
-		.isControlRequest = 0,
-		.onComplete = NULL,
-		.transmitted = 0,
-		.returnCode = 0,
-		.next = NULL,
-		.unused = NULL,
-		.physicalAddress = NULL
-	};
+			.endpoint = &endpoints[0],
+			.data = &gamepad,
+			.size = sizeof(gamepad),
+			.isControlRequest = 0,
+			.onComplete = NULL,
+			.transmitted = 0,
+			.returnCode = 0,
+			.next = NULL,
+			.unused = NULL,
+			.physicalAddress = NULL};
 
 	return ksceUdcdReqSend(&req);
 }
@@ -137,11 +133,11 @@ static void fillGamepadReport(const SceCtrlData *pad, struct GamepadReport *game
 	gamepad->report_id = 1;
 	gamepad->buttons = 0;
 
-	if (pad->buttons & SCE_CTRL_SQUARE)
-		gamepad->buttons |= 1 << 0;
 	if (pad->buttons & SCE_CTRL_CROSS)
-		gamepad->buttons |= 1 << 1;
+		gamepad->buttons |= 1 << 0;
 	if (pad->buttons & SCE_CTRL_CIRCLE)
+		gamepad->buttons |= 1 << 1;
+	if (pad->buttons & SCE_CTRL_SQUARE)
 		gamepad->buttons |= 1 << 2;
 	if (pad->buttons & SCE_CTRL_TRIANGLE)
 		gamepad->buttons |= 1 << 3;
@@ -170,9 +166,9 @@ static void fillGamepadReport(const SceCtrlData *pad, struct GamepadReport *game
 		gamepad->buttons |= 1 << 12;
 	if (pad->buttons & SCE_CTRL_DOWN)
 		gamepad->buttons |= 1 << 13;
-	if (pad->buttons & SCE_CTRL_RIGHT)
-		gamepad->buttons |= 1 << 14;
 	if (pad->buttons & SCE_CTRL_LEFT)
+		gamepad->buttons |= 1 << 14;
+	if (pad->buttons & SCE_CTRL_RIGHT)
 		gamepad->buttons |= 1 << 15;
 
 	gamepad->left_x = (int8_t)pad->lx - 128;
@@ -183,25 +179,24 @@ static void fillGamepadReport(const SceCtrlData *pad, struct GamepadReport *game
 
 static int sendHidReport()
 {
-	static struct GamepadReport gamepad __attribute__((aligned(64))) = { 0 };
+	static struct GamepadReport gamepad __attribute__((aligned(64))) = {0};
 	SceCtrlData pad;
 
-    ksceCtrlPeekBufferPositive(0, &pad, 1);
+	ksceCtrlPeekBufferPositive(0, &pad, 1);
 	fillGamepadReport(&pad, &gamepad);
-	ksceKernelCpuDcacheAndL2WritebackRange(&gamepad, sizeof(gamepad));
+	ksceKernelDcacheCleanRange(&gamepad, sizeof(gamepad));
 
 	static SceUdcdDeviceRequest req = {
-		.endpoint = &endpoints[1],
-		.data = &gamepad,
-		.size = sizeof(gamepad),
-		.isControlRequest = 0,
-		.onComplete = handleHidReportComplete,
-		.transmitted = 0,
-		.returnCode = 0,
-		.next = NULL,
-		.unused = NULL,
-		.physicalAddress = NULL
-	};
+			.endpoint = &endpoints[1],
+			.data = &gamepad,
+			.size = sizeof(gamepad),
+			.isControlRequest = 0,
+			.onComplete = handleHidReportComplete,
+			.transmitted = 0,
+			.returnCode = 0,
+			.next = NULL,
+			.unused = NULL,
+			.physicalAddress = NULL};
 
 	return ksceUdcdReqSend(&req);
 }
@@ -215,48 +210,58 @@ static int processUdcdRequest(int recipient, int arg, SceUdcdEP0DeviceRequest *r
 	uint8_t req_type = req->bmRequestType & USB_CTRLTYPE_TYPE_MASK;
 	uint8_t req_recipient = req->bmRequestType & USB_CTRLTYPE_REC_MASK;
 
-	if (req_dir == USB_CTRLTYPE_DIR_DEVICE2HOST) {
-		switch (req_type) {
+	if (req_dir == USB_CTRLTYPE_DIR_DEVICE2HOST)
+	{
+		switch (req_type)
+		{
 		case USB_CTRLTYPE_TYPE_STANDARD:
-			switch (req_recipient) {
+			switch (req_recipient)
+			{
 			case USB_CTRLTYPE_REC_DEVICE:
-				switch (req->bRequest) {
-				case USB_REQ_GET_DESCRIPTOR: {
+				switch (req->bRequest)
+				{
+				case USB_REQ_GET_DESCRIPTOR:
+				{
 					uint8_t descriptor_type = (req->wValue >> 8) & 0xFF;
 					uint8_t descriptor_idx = req->wValue & 0xFF;
 
-					switch (descriptor_type) {
+					switch (descriptor_type)
+					{
 					case USB_DT_STRING:
 						sendStringDescriptor(descriptor_idx);
 						break;
 					}
 					break;
 				}
-
 				}
 				break;
 			case USB_CTRLTYPE_REC_INTERFACE:
-				switch (req->bRequest) {
-				case USB_REQ_GET_DESCRIPTOR: {
+				switch (req->bRequest)
+				{
+				case USB_REQ_GET_DESCRIPTOR:
+				{
 					uint8_t descriptor_type = (req->wValue >> 8) & 0xFF;
 					uint8_t descriptor_idx = req->wValue & 0xFF;
 
-					switch (descriptor_type) {
+					switch (descriptor_type)
+					{
 					case HID_DESCRIPTOR_REPORT:
 						sendDescHidReport();
 						break;
 					}
 				}
-
 				}
 				break;
 			}
 			break;
 		case USB_CTRLTYPE_TYPE_CLASS:
-			switch (recipient) {
+			switch (recipient)
+			{
 			case USB_CTRLTYPE_REC_INTERFACE:
-				switch (req->bRequest) {
-				case HID_REQUEST_GET_REPORT: {
+				switch (req->bRequest)
+				{
+				case HID_REQUEST_GET_REPORT:
+				{
 					uint8_t report_type = (req->wValue >> 8) & 0xFF;
 					uint8_t report_id = req->wValue & 0xFF;
 
@@ -264,18 +269,22 @@ static int processUdcdRequest(int recipient, int arg, SceUdcdEP0DeviceRequest *r
 						sendInitialHidReport(report_id);
 					break;
 				}
-
 				}
 				break;
 			}
 			break;
 		}
-	} else if (req_dir == USB_CTRLTYPE_DIR_HOST2DEVICE) {
-		switch (req_type) {
+	}
+	else if (req_dir == USB_CTRLTYPE_DIR_HOST2DEVICE)
+	{
+		switch (req_type)
+		{
 		case USB_CTRLTYPE_TYPE_CLASS:
-			switch (req_recipient) {
+			switch (req_recipient)
+			{
 			case USB_CTRLTYPE_REC_INTERFACE:
-				switch (req->bRequest) {
+				switch (req->bRequest)
+				{
 				case HID_REQUEST_SET_IDLE:
 					break;
 				}
@@ -293,213 +302,235 @@ static int attachUdcd(int usb_version, void *user_data)
 	ksceUdcdReqCancelAll(&endpoints[1]);
 	ksceUdcdClearFIFO(&endpoints[1]);
 	ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_CONNECTED);
-    USB_ATTACHED = 1;
+	USB_ATTACHED = 1;
 	return 0;
 }
 
 static void detachUdcd(void *user_data)
 {
 	ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_DISCONNECTED);
-    USB_ATTACHED = 0;
+	USB_ATTACHED = 0;
 }
 
-static int changeUdcdSetting() {
-    return 0;
+static int changeUdcdSetting()
+{
+	return 0;
 }
 
-static void configureUdcd() {
-
+static void configureUdcd()
+{
 }
 
-static void startProprietaryDriver() {
-
+static void startProprietaryDriver()
+{
 }
 
-static void stopProprietaryDriver() {
-
+static void stopProprietaryDriver()
+{
 }
 
 SceUdcdDriver PROPRIETARY_UDCD_DRIVER = {
-	PROPRIETARY_DRIVER_ID,
-	2,
-	&endpoints[0],
-	&interfaces[0],
-	&devdesc_hi,
-	&config_hi,
-	&devdesc_full,
-	&config_full,
-	&string_descriptors[0],
-	&string_descriptors[0],
-	&string_descriptors[0],
-	&processUdcdRequest,
-	&changeUdcdSetting,
-	&attachUdcd,
-	&detachUdcd,
-	&configureUdcd,
-	&startProprietaryDriver,
-	&stopProprietaryDriver,
-	0,
-	0,
-	NULL
-};
+		PROPRIETARY_DRIVER_ID,
+		2,
+		&endpoints[0],
+		&interfaces[0],
+		&devdesc_hi,
+		&config_hi,
+		&devdesc_full,
+		&config_full,
+		&string_descriptors[0],
+		&string_descriptors[0],
+		&string_descriptors[0],
+		&processUdcdRequest,
+		&changeUdcdSetting,
+		&attachUdcd,
+		&detachUdcd,
+		&configureUdcd,
+		&startProprietaryDriver,
+		&stopProprietaryDriver,
+		0,
+		0,
+		NULL};
 
 static int USB_THREAD(SceSize args, void *argp)
 {
-    ksceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
-    while (1) {
-        int EVF_OUT;
-        int response = ksceKernelWaitEventFlagCB(USB_EVENT_FLAG_ID, EVF_ALL_MASK, SCE_EVENT_WAITOR | SCE_EVENT_WAITCLEAR_PAT, &EVF_OUT, NULL);
-        if (response < 0 || SHOULD_EXIT_THREAD == 1) {
-            break;
-        }
-        sendHidReport();
-    }
+	ksceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+	while (1)
+	{
+		int EVF_OUT;
+		int response = ksceKernelWaitEventFlagCB(USB_EVENT_FLAG_ID, EVF_ALL_MASK, SCE_EVENT_WAITOR | SCE_EVENT_WAITCLEAR_PAT, &EVF_OUT, NULL);
+		if (response < 0 || SHOULD_EXIT_THREAD == 1)
+		{
+			break;
+		}
+		sendHidReport();
+	}
 
-    return 0;
+	return 0;
 }
 
-int createGamepadThread() {
-    USB_THREAD_ID = ksceKernelCreateThread("VITAPAD_USB_THREAD", USB_THREAD, 0x3C, 0x1000, 0, 0x10000, 0);
-    return USB_THREAD_ID;
+int createGamepadThread()
+{
+	USB_THREAD_ID = ksceKernelCreateThread("VITAPAD_USB_THREAD", USB_THREAD, 0x3C, 0x1000, 0, 0x10000, 0);
+	return USB_THREAD_ID;
 }
 
-int removeGamepadThread() {
-    return ksceKernelDeleteThread(USB_THREAD_ID);
+int removeGamepadThread()
+{
+	return ksceKernelDeleteThread(USB_THREAD_ID);
 }
 
-int startGamepadThread() {
-    return ksceKernelStartThread(USB_THREAD_ID, 0, NULL);
+int startGamepadThread()
+{
+	return ksceKernelStartThread(USB_THREAD_ID, 0, NULL);
 }
 
-int createGamepadFlag() {
-    USB_EVENT_FLAG_ID = ksceKernelCreateEventFlag("VITAPAD_EVENT_FLAG", 0, 0, NULL);
-    return USB_EVENT_FLAG_ID;
+int createGamepadFlag()
+{
+	USB_EVENT_FLAG_ID = ksceKernelCreateEventFlag("VITAPAD_EVENT_FLAG", 0, 0, NULL);
+	return USB_EVENT_FLAG_ID;
 }
 
-int removeGamepadFlag() {
-    return ksceKernelDeleteEventFlag(USB_EVENT_FLAG_ID);
+int removeGamepadFlag()
+{
+	return ksceKernelDeleteEventFlag(USB_EVENT_FLAG_ID);
 }
 
-int registerGamepad() {
-    PROPRIETARY_DRIVER_REGISTERED = 1;
-    return ksceUdcdRegister(&PROPRIETARY_UDCD_DRIVER);
+int registerGamepad()
+{
+	PROPRIETARY_DRIVER_REGISTERED = 1;
+	return ksceUdcdRegister(&PROPRIETARY_UDCD_DRIVER);
 }
 
-int unregisterGamepad() {
-    PROPRIETARY_DRIVER_REGISTERED = 0;
-    return ksceUdcdUnregister(&PROPRIETARY_UDCD_DRIVER);
+int unregisterGamepad()
+{
+	PROPRIETARY_DRIVER_REGISTERED = 0;
+	return ksceUdcdUnregister(&PROPRIETARY_UDCD_DRIVER);
 }
 
-int startDriver() {
-    return ksceUdcdStart(PROPRIETARY_DRIVER_ID, 0, 0);
+int startDriver()
+{
+	return ksceUdcdStart(PROPRIETARY_DRIVER_ID, 0, 0);
 }
 
-int stopDriver() {
-    return ksceUdcdStop(PROPRIETARY_DRIVER_ID, 0, 0);
+int stopDriver()
+{
+	return ksceUdcdStop(PROPRIETARY_DRIVER_ID, 0, 0);
 }
 
-int activateDriver() {
-    return ksceUdcdActivate(PROPRIETARY_USB_PID);
+int activateDriver()
+{
+	return ksceUdcdActivate(PROPRIETARY_USB_PID);
 }
 
-int deactivateDriver() {
-    return ksceUdcdDeactivate();
+int deactivateDriver()
+{
+	return ksceUdcdDeactivate();
 }
 
-int disconnectDriver() {
-    return ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_DISCONNECTED);
+int disconnectDriver()
+{
+	return ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_DISCONNECTED);
 }
 
-void stopUsbDrivers() {
-    ksceUdcdStop("USB_MTP_Driver", 0, NULL);
-    ksceUdcdStop("USBPSPCommunicationDriver", 0, NULL);
-    ksceUdcdStop("USBSerDriver", 0, NULL);
-    ksceUdcdStop("USBDeviceControllerDriver", 0, NULL);
+void stopUsbDrivers()
+{
+	ksceUdcdStop("USB_MTP_Driver", 0, NULL);
+	ksceUdcdStop("USBPSPCommunicationDriver", 0, NULL);
+	ksceUdcdStop("USBSerDriver", 0, NULL);
+	ksceUdcdStop("USBDeviceControllerDriver", 0, NULL);
 }
 
-void resetGamepad() {
-    unregisterGamepad();
-    removeGamepadThread();
-    removeGamepadFlag();
+void resetGamepad()
+{
+	unregisterGamepad();
+	removeGamepadThread();
+	removeGamepadFlag();
 }
 
-void vitaPadPreventSleep() {
-    ksceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
+void vitaPadPreventSleep()
+{
+	ksceKernelPowerTick(SCE_KERNEL_POWER_TICK_DEFAULT);
 }
 
 void vitaPadStart(void)
 {
-    log_reset();
+	log_reset();
 
-    SHOULD_EXIT_THREAD = 0;
-    USB_ATTACHED = 2;
+	SHOULD_EXIT_THREAD = 0;
+	USB_ATTACHED = 2;
 
-    deactivateDriver();
-    stopUsbDrivers();
+	deactivateDriver();
+	stopUsbDrivers();
 
-    registerGamepad();
-    startGamepadThread();
-    ksceUdcdStart("USBDeviceControllerDriver", 0, NULL);
-    startDriver();
-    activateDriver();
+	registerGamepad();
+	startGamepadThread();
+	ksceUdcdStart("USBDeviceControllerDriver", 0, NULL);
+	startDriver();
+	activateDriver();
 
-    ksceKernelClearEventFlag(USB_EVENT_FLAG_ID, ~EVF_ALL_MASK);
+	ksceKernelClearEventFlag(USB_EVENT_FLAG_ID, ~EVF_ALL_MASK);
 
 	PROPRIETARY_DRIVER_ACTIVATED = 1;
 }
 
 void vitaPadStop(void)
 {
-    SHOULD_EXIT_THREAD = 1;
+	SHOULD_EXIT_THREAD = 1;
 
-    ksceKernelClearEventFlag(USB_EVENT_FLAG_ID, EVF_ALL_MASK);
-    ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_EXIT);
-    ksceKernelWaitThreadEnd(USB_THREAD_ID, NULL, NULL);
+	ksceKernelClearEventFlag(USB_EVENT_FLAG_ID, EVF_ALL_MASK);
+	ksceKernelSetEventFlag(USB_EVENT_FLAG_ID, EVF_EXIT);
+	ksceKernelWaitThreadEnd(USB_THREAD_ID, NULL, NULL);
 	stopDriver();
-    stopUsbDrivers();
+	stopUsbDrivers();
 
-    ksceUdcdStart("USBDeviceControllerDriver", 0, NULL);
-    ksceUdcdStart("USB_MTP_Driver", 0, NULL);
+	ksceUdcdStart("USBDeviceControllerDriver", 0, NULL);
+	ksceUdcdStart("USB_MTP_Driver", 0, NULL);
 	ksceUdcdActivate(0x4E4);
 
 	PROPRIETARY_DRIVER_ACTIVATED = 0;
 }
 
-void vitaPadUpdateL2Pressed(int pressed){
-    L2_PRESSED = pressed;
+void vitaPadUpdateL2Pressed(int pressed)
+{
+	L2_PRESSED = pressed;
 }
 
-void vitaPadUpdateR2Pressed(int pressed){
-    R2_PRESSED = pressed;
+void vitaPadUpdateR2Pressed(int pressed)
+{
+	R2_PRESSED = pressed;
 }
 
-void vitaPadUpdateL3Pressed(int pressed){
-    L3_PRESSED = pressed;
+void vitaPadUpdateL3Pressed(int pressed)
+{
+	L3_PRESSED = pressed;
 }
 
-void vitaPadUpdateR3Pressed(int pressed){
-    R3_PRESSED = pressed;
+void vitaPadUpdateR3Pressed(int pressed)
+{
+	R3_PRESSED = pressed;
 }
 
-int vitaPadUsbAttached() {
-    return USB_ATTACHED;
+int vitaPadUsbAttached()
+{
+	return USB_ATTACHED;
 }
 
 void _start() __attribute__((weak, alias("module_start")));
 
 int module_start(SceSize argc, const void *args)
 {
-    createGamepadThread();
-    createGamepadFlag();
-    registerGamepad();
+	createGamepadThread();
+	createGamepadFlag();
+	registerGamepad();
 
-    return SCE_KERNEL_START_SUCCESS;
+	return SCE_KERNEL_START_SUCCESS;
 }
 
 int module_stop(SceSize argc, const void *args)
 {
-    vitaPadStop();
-    resetGamepad();
+	vitaPadStop();
+	resetGamepad();
 
 	return SCE_KERNEL_STOP_SUCCESS;
 }
